@@ -19,9 +19,6 @@ import sys
 import time
 from thop import profile, clever_format
 
-# 添加功耗计算器路径
-sys.path.append('/home3/shpb49/Postdoc/VLIFNet_all_ablation')
-from energy_consumption_calculator import EnergyCalculator
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--preprocess', type=str, default='crop')
@@ -69,89 +66,47 @@ def calculate_ssim(img1, img2):
 
 
 def count_parameters(model):
-    """统计模型参数数量"""
+    """Count model parameters"""
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return total_params, trainable_params
 
 def calculate_flops(model, input_size=(1, 3, 256, 256)):
-    """计算模型FLOPS"""
-    # 创建一个随机输入
+    """Calculate model FLOPs"""
+    # Create a random input
     input_tensor = torch.randn(input_size)
     if torch.cuda.is_available():
         input_tensor = input_tensor.cuda()
     
-    # 使用thop计算FLOPS
+    # Use thop to calculate FLOPs
     flops, params = profile(model, inputs=(input_tensor,), verbose=False)
     return flops, params
 
 def print_model_info(model, input_size=(1, 3, 256, 256), crop_size=80):
-    """打印模型信息"""
+    """Print model information"""
     print("=" * 80)
-    print("                          模型信息")
+    print("                          Model Information")
     print("=" * 80)
     
-    # 1. 参数数量
+    # 1. Parameter count
     total_params, trainable_params = count_parameters(model)
-    print(f"总参数数量: {total_params:,}")
-    print(f"可训练参数数量: {trainable_params:,}")
-    print(f"参数大小: {total_params * 4 / 1024 / 1024:.2f} MB (假设float32)")
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    print(f"Parameter size: {total_params * 4 / 1024 / 1024:.2f} MB (assuming float32)")
     
-    # 2. FLOPS计算 (使用裁剪块的尺寸)
+    # 2. FLOPs calculation (using crop size)
     try:
         crop_input_size = (input_size[0], input_size[1], crop_size, crop_size)
         flops, _ = calculate_flops(model, crop_input_size)
         flops_str, params_str = clever_format([flops, total_params], "%.3f")
-        print(f"FLOPS (per {crop_size}x{crop_size} patch): {flops_str}")
-        print(f"参数数量 (thop): {params_str}")
+        print(f"FLOPs (per {crop_size}x{crop_size} patch): {flops_str}")
+        print(f"Parameter count (thop): {params_str}")
         
-        # 重置模型状态，避免尺寸不匹配问题
+        # Reset model state to avoid mismatch issues
         functional.reset_net(model)
     except Exception as e:
-        print(f"FLOPS计算失败: {e}")
+        print(f"FLOPs calculation failed: {e}")
         flops = 0
-    
-    # 3. 能耗计算
-    print("\n" + "=" * 80)
-    print("                          能耗分析")
-    print("=" * 80)
-    
-    try:
-        # 创建能耗计算器
-        calculator = EnergyCalculator(T=4, sparsity=0.1642)
-        
-        # Calculate energy consumption (Use full image dimensions)
-        C, H, W = input_size[1], input_size[2], input_size[3]
-        total_energy = calculator.calculate_vlifnet_energy(
-            input_size=(C, H, W),
-            dim=24,  # Adjust based on actual model
-            en_num_blocks=[4, 4, 6, 6],
-            de_num_blocks=[4, 4, 6, 6]
-        )
-        
-        print(f"\n能耗汇总 (完整 {H}x{W} 图像):")
-        print(f"单张图像处理能耗: {total_energy*1e12:.2f} pJ")
-        print(f"单张图像处理能耗: {total_energy*1e9:.2f} nJ")
-        print(f"单张图像处理能耗: {total_energy*1e6:.2f} μJ")
-        
-        # 计算裁剪块的能耗
-        crop_ratio = (crop_size / H) * (crop_size / W)
-        crop_energy = total_energy * crop_ratio
-        print(f"\n单个 {crop_size}x{crop_size} 裁剪块能耗:")
-        print(f"裁剪块处理能耗: {crop_energy*1e12:.2f} pJ")
-        print(f"裁剪块处理能耗: {crop_energy*1e9:.2f} nJ")
-        
-        # 计算每秒能耗 (假设处理10 FPS)
-        fps = 10
-        power_consumption = total_energy * fps
-        print(f"\n假设处理速度 {fps} FPS:")
-        print(f"功耗: {power_consumption*1e6:.2f} μW")
-        print(f"功耗: {power_consumption*1e3:.2f} mW")
-        
-    except Exception as e:
-        print(f"能耗计算失败: {e}")
-        import traceback
-        traceback.print_exc()
     
     print("=" * 80)
 
@@ -319,7 +274,7 @@ if __name__ == '__main__':
     functional.set_step_mode(model_restoration, step_mode='m')
     functional.set_backend(model_restoration, backend='cupy')
     
-    # 正确加载checkpoint
+    # Correctly load checkpoint
     print(f"Loading model weights from: {opt.weights}")
     load_checkpoint(model_restoration, opt.weights)
     
@@ -327,7 +282,7 @@ if __name__ == '__main__':
     model_restoration.cuda()
     model_restoration.eval()
     
-    # 打印模型信息
+    # Print model information
     print_model_info(model_restoration, input_size=(1, 3, 256, 256), crop_size=crop_size)
     
     inp_dir = opt.data_path
@@ -339,9 +294,9 @@ if __name__ == '__main__':
     psnr_list = []
     ssim_list = []
     
-    # 开始测试
+    # Start testing
     print("\n" + "=" * 80)
-    print("                          开始测试")
+    print("                          Start Testing")
     print("=" * 80)
     
     start_time = time.time()
@@ -383,7 +338,7 @@ if __name__ == '__main__':
                 save_file = os.path.join(result_dir, cleanname)
                 save_img(save_file, img_as_ubyte(restored_np))
     
-    # 测试完成统计
+    # Testing statistics
     end_time = time.time()
     test_time = end_time - start_time
     num_images = len(psnr_list)
@@ -396,9 +351,9 @@ if __name__ == '__main__':
     print(f"Average PSNR: {avg_psnr:.4f} dB")
     print(f"Average SSIM: {avg_ssim:.4f}")
     print(f"Total images processed: {len(psnr_list)}")
-    print(f"总测试时间: {test_time:.2f} 秒")
-    print(f"平均每张图像处理时间: {test_time/num_images:.2f} 秒")
-    print(f"实际处理速度: {num_images/test_time:.2f} FPS")
+    print(f"Total test time: {test_time:.2f} seconds")
+    print(f"Average time per image: {test_time/num_images:.2f} seconds")
+    print(f"Actual processing speed: {num_images/test_time:.2f} FPS")
     
     # Save results to file
     results_file = os.path.join(result_dir, 'metrics_results.txt')
@@ -406,9 +361,9 @@ if __name__ == '__main__':
         f.write(f"Average PSNR: {avg_psnr:.4f} dB\n")
         f.write(f"Average SSIM: {avg_ssim:.4f}\n")
         f.write(f"Total images processed: {len(psnr_list)}\n")
-        f.write(f"总测试时间: {test_time:.2f} 秒\n")
-        f.write(f"平均每张图像处理时间: {test_time/num_images:.2f} 秒\n")
-        f.write(f"实际处理速度: {num_images/test_time:.2f} FPS\n\n")
+        f.write(f"Total test time: {test_time:.2f} seconds\n")
+        f.write(f"Average time per image: {test_time/num_images:.2f} seconds\n")
+        f.write(f"Actual processing speed: {num_images/test_time:.2f} FPS\n\n")
         f.write("Per-image results:\n")
         for i, (psnr, ssim) in enumerate(zip(psnr_list, ssim_list)):
             f.write(f"Image {i+1}: PSNR={psnr:.4f}, SSIM={ssim:.4f}\n")
