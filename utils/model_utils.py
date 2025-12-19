@@ -29,7 +29,7 @@ def load_checkpoint(model, weights):
     checkpoint = torch.load(weights)
     # print(checkpoint)
     try:
-        model.load_state_dict(checkpoint["state_dict"])
+        model.load_state_dict(checkpoint["state_dict"],strict=False)
     except:
         state_dict = checkpoint["state_dict"]
         new_state_dict = OrderedDict()
