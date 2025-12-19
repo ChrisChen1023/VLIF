@@ -1,7 +1,7 @@
 <div align="center">
 
   
-  # [AAAI 2026 ☔] Exploring the Potentials of Spiking Neural Networks for Image Deraining
+  # [AAAI 2026 ☔] Exploring the Potentials of Spiking Neural Networks for Image Deraining 🎅
 
 </div>
 
@@ -13,7 +13,7 @@ Biologically plausible and energy-efficient frameworks such as Spiking Neural Ne
 
 ## Preparation
 
-## Datasets
+## 🔔 Datasets
 <table>
 <thead>
   <tr>
@@ -100,7 +100,7 @@ The final file path should be the same as the following:
 
 ```
 
-### 🛠️ Training, Testing and Evaluation
+### 🛠️ Training & Testing
 
 ### Train
 You should change the path to yours in the `Train.py` file:
