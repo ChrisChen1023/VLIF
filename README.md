@@ -82,7 +82,7 @@ The final file path should be the same as the following:
 
 ```
 ┬─ pretrained_models
-│   ├─ Rain12.pth
+│   ├─ Rain200L.pth
 │   ├─ Rain200H.pth
 │   ├─ ... (model name)
 │   └─ ... (exp name)
