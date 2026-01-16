@@ -227,46 +227,16 @@ from collections import OrderedDict
 
 
 def load_checkpoint(model, weights):
-    checkpoint = torch.load(weights)
-    try:
-        if "state_dict" in checkpoint:
-            print("Loading from checkpoint with 'state_dict' key...")
-            model.load_state_dict(checkpoint["state_dict"])
-        else:
-            print("Loading directly from checkpoint...")
-            model.load_state_dict(checkpoint)
-    except Exception as e:
-        print(f"First attempt failed: {e}")
-        print("Trying to remove 'module.' prefix...")
-        try:
-            if "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-            else:
-                state_dict = checkpoint
-                
-            new_state_dict = OrderedDict()
-            for k, v in state_dict.items():
-                name = k[7:] if k.startswith('module.') else k  # remove `module.` if exists
-                new_state_dict[name] = v
-            model.load_state_dict(new_state_dict)
-        except Exception as e2:
-            print(f"Second attempt also failed: {e2}")
-            print("Trying to load with strict=False...")
-            try:
-                if "state_dict" in checkpoint:
-                    state_dict = checkpoint["state_dict"]
-                else:
-                    state_dict = checkpoint
-                    
-                new_state_dict = OrderedDict()
-                for k, v in state_dict.items():
-                    name = k[7:] if k.startswith('module.') else k
-                    new_state_dict[name] = v
-                model.load_state_dict(new_state_dict, strict=False)
-                print("Successfully loaded with strict=False (some keys may be missing)")
-            except Exception as e3:
-                print(f"All attempts failed: {e3}")
-                raise e3
+    checkpoint = torch.load(weights, map_location='cpu')
+    state_dict = checkpoint.get("state_dict", checkpoint)
+
+    if isinstance(state_dict, dict):
+        state_dict = OrderedDict(
+            (k[7:] if k.startswith("module.") else k, v) for k, v in state_dict.items()
+        )
+
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+    # print(f"Loaded weights (strict=False). Missing keys: {len(missing)}, Unexpected keys: {len(unexpected)}")
 
 
 if __name__ == '__main__':
