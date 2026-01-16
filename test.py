@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 import sys
 import time
-from thop import profile, clever_format
+from thop import profile
 
 
 parser = argparse.ArgumentParser()
@@ -63,52 +63,6 @@ def calculate_ssim(img1, img2):
                                channel_axis=2,  # Use channel_axis instead of multichannel
                                data_range=1.0,
                                win_size=win_size)
-
-
-def count_parameters(model):
-    """Count model parameters"""
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    return total_params, trainable_params
-
-def calculate_flops(model, input_size=(1, 3, 256, 256)):
-    """Calculate model FLOPs"""
-    # Create a random input
-    input_tensor = torch.randn(input_size)
-    if torch.cuda.is_available():
-        input_tensor = input_tensor.cuda()
-    
-    # Use thop to calculate FLOPs
-    flops, params = profile(model, inputs=(input_tensor,), verbose=False)
-    return flops, params
-
-def print_model_info(model, input_size=(1, 3, 256, 256), crop_size=80):
-    """Print model information"""
-    print("=" * 80)
-    print("                          Model Information")
-    print("=" * 80)
-    
-    # 1. Parameter count
-    total_params, trainable_params = count_parameters(model)
-    print(f"Total parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
-    print(f"Parameter size: {total_params * 4 / 1024 / 1024:.2f} MB (assuming float32)")
-    
-    # 2. FLOPs calculation (using crop size)
-    try:
-        crop_input_size = (input_size[0], input_size[1], crop_size, crop_size)
-        flops, _ = calculate_flops(model, crop_input_size)
-        flops_str, params_str = clever_format([flops, total_params], "%.3f")
-        print(f"FLOPs (per {crop_size}x{crop_size} patch): {flops_str}")
-        print(f"Parameter count (thop): {params_str}")
-        
-        # Reset model state to avoid mismatch issues
-        functional.reset_net(model)
-    except Exception as e:
-        print(f"FLOPs calculation failed: {e}")
-        flops = 0
-    
-    print("=" * 80)
 
 
 class DataLoaderEval(data.Dataset):
@@ -252,8 +206,14 @@ if __name__ == '__main__':
     model_restoration.cuda()
     model_restoration.eval()
     
-    # Print model information
-    print_model_info(model_restoration, input_size=(1, 3, 256, 256), crop_size=crop_size)
+    # FLOPs / Params
+    x = torch.rand(1, 3, 256, 256).cuda()
+    functional.set_step_mode(model_restoration, step_mode='m')
+    functional.set_backend(model_restoration, backend='cupy')
+    flops, params = profile(model_restoration, inputs=(x,), verbose=False)
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+    functional.reset_net(model_restoration)
     
     inp_dir = opt.data_path
     eval_loader = getevalloader(opt)
