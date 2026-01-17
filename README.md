@@ -108,6 +108,11 @@ You should change the path to yours in the `Train.py` file:
 --train_dir /..../..../.../train
 --val_dir /.../.../.../val
 ```
+You should change the name of the dataset name you wish to use, for example:
+```
+--name RainH200
+```
+
 
 Then run the following script to test the trained model:
 
@@ -122,6 +127,12 @@ You should change the path to yours in the `Test.py` file:
 --target_path /.../.../.../test/target
 --weights /.../.../../....pth
 ```
+
+You should change the name of the dataset name you are going to test, for example:
+```
+--name RainH200
+```
+
 Then run the following script to test the trained model:
 
 ```sh
