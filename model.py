@@ -423,13 +423,14 @@ class UpSampling(nn.Module):
 
 class VLIFNet(nn.Module):
     def __init__(self, inp_channels=3, out_channels=3, dim=24, en_num_blocks=[4, 4, 6, 6], de_num_blocks=[4, 4, 6, 6],
-                 bias=False, T=4):
+                 bias=False, T=4, use_refinement=False):
         super(VLIFNet, self).__init__()
 
         functional.set_backend(self, backend='cupy')
         functional.set_step_mode(self, step_mode='m')
 
         self.T = T
+        self.use_refinement = use_refinement
         self.patch_embed = OverlapPatchEmbed(in_c=inp_channels, embed_dim=dim, T=T)
         # Use SUNet_Level1_Block instead of the original Spiking_Residual_Block sequence
         self.encoder_level1 = SUNet_Level1_Block(dim=int(dim * 1))
@@ -467,6 +468,12 @@ class VLIFNet(nn.Module):
         
         # Add extra SUNet_Level1_Block
         self.additional_sunet_level1 = SUNet_Level1_Block(dim=int(dim * 2 ** 0))
+        
+        # Add refinement blocks only if use_refinement is True (for RainL200)
+        if self.use_refinement:
+            self.refinement_blocks = nn.Sequential(*[
+                Spiking_Residual_Block(dim=int(dim * 2 ** 0)) for i in range(4)
+            ])
 
         self.output = nn.Sequential(
             nn.Conv2d(in_channels=int(dim * 2 ** 0), out_channels=out_channels, kernel_size=3, stride=1,
@@ -512,6 +519,10 @@ class VLIFNet(nn.Module):
         
         # Pass through SUNet_Level1_Block again
         out_dec_level1 = self.additional_sunet_level1(out_dec_level1)
+        
+        # Pass through refinement blocks if use_refinement is True (for RainL200)
+        if self.use_refinement:
+            out_dec_level1 = self.refinement_blocks(out_dec_level1)
 
         ############ Image Reconstruction  ################
         # Skip refinement, go directly through output layer and add short
@@ -519,4 +530,5 @@ class VLIFNet(nn.Module):
         return out_dec_level1
 
 
-model = VLIFNet(dim=48, en_num_blocks=[4, 4, 8, 8], de_num_blocks=[2, 2, 2, 2], T=4).cuda()
+def model(use_refinement=False):
+    return VLIFNet(dim=48, en_num_blocks=[4, 4, 8, 8], de_num_blocks=[2, 2, 2, 2], T=4, use_refinement=use_refinement).cuda()

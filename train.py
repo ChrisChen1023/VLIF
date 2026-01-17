@@ -20,6 +20,7 @@ import numpy as np
 from PIL import Image
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
+from thop import profile
 
 def save_sample_images(input_img, target_img, restored_img, save_path, epoch, batch_idx, num_samples=4):
     """
@@ -78,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument('--session', default='DID-Data_new', type=str, help='session')
     parser.add_argument('--patch_size_train', default=64, type=int, help='training patch size')
     parser.add_argument('--patch_size_test', default=64, type=int, help='val patch size')
-    parser.add_argument('--num_epochs', default=2000, type=int, help='num_epochs')
+    parser.add_argument('--num_epochs', default=1000, type=int, help='num_epochs')
     parser.add_argument('--batch_size', default=12, type=int, help='batch_size')
     parser.add_argument('--val_epochs', default=10, type=int, help='val_epochs')
     parser.add_argument('--lr', default=1e-3, type=int, help='LearningRate')
@@ -87,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument('--clip_grad', default=1.0, type=float, help='clip_grad')
     parser.add_argument('--use_amp', default=False, type=bool, help='use_amp')
     parser.add_argument('--num_workers', default=2, type=int, help='num_workers')
+    parser.add_argument('--name', default='RainH200', type=str, help='Dataset name: RainL200, RainH200, or Rain1200')
     args = parser.parse_args()
 
     start_lr = args.lr
@@ -115,7 +117,9 @@ if __name__ == "__main__":
     num_workers = args.num_workers
 
     ######### Model ###########
-    model_restoration = model
+    # Determine whether to use refinement blocks based on dataset name
+    use_refinement = (args.name == 'RainL200')
+    model_restoration = model(use_refinement=use_refinement)
     model_restoration.cuda()
 
     functional.set_step_mode(model_restoration, step_mode='m')
@@ -196,11 +200,20 @@ if __name__ == "__main__":
     print('===> Start Epoch {} End Epoch {}'.format(start_epoch, num_epochs + 1))
     print('===> Loading datasets')
     
-    # Calculate model parameters
-    def count_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # Calculate FLOPs and Parameters
+    print('=' * 80)
+    print('MODEL INFORMATION:')
+    print('=' * 80)
+    x = torch.rand(1, 3, 256, 256).cuda()
+    functional.set_step_mode(model_restoration, step_mode='m')
+    functional.set_backend(model_restoration, backend='cupy')
+    flops, params = profile(model_restoration, inputs=(x,), verbose=False)
+    print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
+    print('Params = ' + str(params / 1000 ** 2) + 'M')
+    print('=' * 80)
     
-    total_params = count_parameters(model_restoration)
+    # Reset model state
+    functional.reset_net(model_restoration)
     
     # Print hyperparameters
     print('=' * 80)
@@ -225,7 +238,6 @@ if __name__ == "__main__":
     print(f'Number of Workers: {num_workers}')
     print(f'Number of GPUs: {len(device_ids)}')
     print(f'Device IDs: {device_ids}')
-    print(f'Model Parameters: {total_params:,} ({total_params/1e6:.2f}M)')
     print('=' * 80)
 
     best_psnr = 0

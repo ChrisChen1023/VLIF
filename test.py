@@ -24,13 +24,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--preprocess', type=str, default='crop')
 parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. -1 for CPU')
-parser.add_argument('--data_path', type=str, default='')
-parser.add_argument('--target_path', type=str, default='')
+parser.add_argument('--data_path', type=str, default='/home3/shpb49/Data/deraining_datasets/Rain200H/test/input')
+parser.add_argument('--target_path', type=str, default='/home3/shpb49/Data/deraining_datasets/Rain200H/test/target')
 parser.add_argument('--save_path', type=str, default='./results/')
 parser.add_argument('--eval_workers', type=int, default=4)
 parser.add_argument('--crop_size', type=int, default=80)
 parser.add_argument('--overlap_size', type=int, default=8)
-parser.add_argument('--weights', type=str, default='')
+parser.add_argument('--weights', type=str, default='/home3/shpb49/Postdoc/ESDNet_final/Rain_200H/for_github/checkpoints/model_H200.pth')
+parser.add_argument('--name', type=str, default='RainH200', help='Dataset name: RainL200, RainH200, or Rain1200')
 opt = parser.parse_args()
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -194,7 +195,9 @@ def load_checkpoint(model, weights):
 
 
 if __name__ == '__main__':
-    model_restoration = model.cuda()
+    # Determine whether to use refinement blocks based on dataset name
+    use_refinement = (opt.name == 'RainL200')
+    model_restoration = model(use_refinement=use_refinement).cuda()
     functional.set_step_mode(model_restoration, step_mode='m')
     functional.set_backend(model_restoration, backend='cupy')
     
@@ -206,13 +209,19 @@ if __name__ == '__main__':
     model_restoration.cuda()
     model_restoration.eval()
     
-    # FLOPs / Params
+    # Calculate FLOPs and Parameters
+    print("=" * 80)
+    print("                          Model Information")
+    print("=" * 80)
     x = torch.rand(1, 3, 256, 256).cuda()
     functional.set_step_mode(model_restoration, step_mode='m')
     functional.set_backend(model_restoration, backend='cupy')
     flops, params = profile(model_restoration, inputs=(x,), verbose=False)
     print('FLOPs = ' + str(flops / 1000 ** 3) + 'G')
     print('Params = ' + str(params / 1000 ** 2) + 'M')
+    print("=" * 80)
+    
+    # Reset model state
     functional.reset_net(model_restoration)
     
     inp_dir = opt.data_path
