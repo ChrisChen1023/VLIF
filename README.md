@@ -51,7 +51,7 @@ Biologically plausible and energy-efficient frameworks such as Spiking Neural Ne
 <tbody>
   <tr>
     <td>Google Drive</td>
-    <td> <a href="">-</a> </td>
+    <td> <a href="https://drive.google.com/file/d/1IVyYsPkUS43HbYyrwAFIvX-NrB6Bkmaa/view?usp=sharing">Download</a> </td>
     <td align="center"> <a href="https://drive.google.com/file/d/1mkdFWZebdBD9n4Jrmy-yAlYdUDPA_keX/view?usp=drive_link">Download</a> </td>
     <td > <a href="https://drive.google.com/file/d/1pEBkthyTpS-r1G-_KPdMp83XRncFd4A3/view?usp=drive_link">Download</a> </td>
   </tr>
