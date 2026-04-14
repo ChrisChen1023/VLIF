@@ -1,8 +1,5 @@
 <div align="center">
-
-  
   # [AAAI 2026 ☔] Exploring the Potentials of Spiking Neural Networks for Image Deraining 🎅
-
 </div>
 
 **Abstract:** 
